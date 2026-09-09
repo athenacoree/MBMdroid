@@ -147,24 +147,11 @@ class MainActivity : ComponentActivity() {
         appManager = AppManager(this)
         appUpdater = AppUpdater(this)
 
-        // Apps de sistema: Ajustes, Tienda y Almacenamiento. Se descargan desde el repositorio
-        // oficial en primer arranque/actualización con identificador oficial de sistema (system.*).
-        lifecycleScope.launch(Dispatchers.IO) {
-            val systemAppsUrls = mapOf(
-                SETTINGS_APP_ID to "https://raw.githubusercontent.com/mbmdroid/system_apps/main/settings.zip",
-                STORE_APP_ID to "https://raw.githubusercontent.com/mbmdroid/system_apps/main/store.zip",
-                STORAGE_APP_ID to "https://raw.githubusercontent.com/mbmdroid/system_apps/main/storage.zip"
-            )
-            for ((id, url) in systemAppsUrls) {
-                if (appManager.getById(id) == null) {
-                    val remoteResult = appManager.installOrUpdateSystemAppFromUrl(id, url)
-                    if (remoteResult.isFailure) {
-                        val assetSubdir = id.removePrefix("system.")
-                        appManager.installSystemAppFromAssets(assetSubdir, id)
-                    }
-                }
-            }
-        }
+        // Apps de sistema: Ajustes, Tienda y Almacenamiento. Se instalan en primer arranque desde
+        // los assets iniciales del sistema protegidos y se pueden actualizar desde repositorios remotos oficiales.
+        appManager.installSystemAppFromAssets("settings", SETTINGS_APP_ID)
+        appManager.installSystemAppFromAssets("store", STORE_APP_ID)
+        appManager.installSystemAppFromAssets("storage", STORAGE_APP_ID)
         appManager.purgeExpiredTrash()
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {

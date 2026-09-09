@@ -17,15 +17,6 @@ import com.locol.mbmdroid.data.CategoryCatalog
 import com.locol.mbmdroid.data.DefaultAppsManager
 import com.locol.mbmdroid.model.MiniApp
 
-/**
- * Se registra en el AndroidManifest con intent-filters para VIEW de video/*, audio/*,
- * image/*, etc — así el propio Android ofrece "MbMdroid" en su diálogo nativo de "abrir
- * con" cuando el usuario abre un archivo desde el explorador, otra app, etc.
- *
- * Si ya hay una mini-app predeterminada para esa categoría (DefaultAppsManager), la
- * lanza directo. Si no, muestra el propio diálogo "Abrir con..." de MbMdroid, con
- * "Siempre" (guarda el default) y "Solo esta vez" (no guarda nada).
- */
 class ChooserActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {

@@ -66,6 +66,19 @@ class AppUpdater(private val context: Context) {
                     stagedDir.deleteRecursively()
                     return Result.failure(IllegalStateException("El paquete de actualización no corresponde al identificador oficial del sistema"))
                 }
+                val sig = manifestJson.optString("signature", "")
+                val pubKey = manifestJson.optString("publicKey", "")
+                val cleanPayload = AppSigner.cleanManifestPayload(manifestFile.readText())
+                val tier = AppSigner.determineTier(
+                    id = appId,
+                    manifestPayload = cleanPayload,
+                    signatureBase64 = sig,
+                    publicKeyBase64 = pubKey
+                )
+                if (tier != com.locol.mbmdroid.model.AppTier.OFFICIAL_SYSTEM_APP) {
+                    stagedDir.deleteRecursively()
+                    return Result.failure(SecurityException("La firma de la actualización no corresponde a la autoridad oficial de MbMdroid"))
+                }
             }
 
             val diffs = computeDiff(currentDir, stagedDir)

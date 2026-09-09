@@ -279,10 +279,10 @@ class AppRuntimeActivity : AppCompatActivity() {
                 val total = connection.contentLengthLong
                 pushUpdate(record.copy(totalBytes = total))
 
+                var downloaded = 0L
                 connection.inputStream.use { input ->
                     tempFile.outputStream().use { output ->
                         val buffer = ByteArray(16 * 1024)
-                        var downloaded = 0L
                         var lastTick = System.currentTimeMillis()
                         var lastDownloaded = 0L
                         while (true) {

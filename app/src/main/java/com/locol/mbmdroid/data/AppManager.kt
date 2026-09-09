@@ -3,6 +3,7 @@ package com.locol.mbmdroid.data
 import android.content.Context
 import android.net.Uri
 import com.locol.mbmdroid.model.AppStatus
+import com.locol.mbmdroid.model.AppTier
 import com.locol.mbmdroid.model.MiniApp
 import org.json.JSONArray
 import org.json.JSONObject
@@ -235,8 +236,11 @@ class AppManager(private val context: Context) {
             extractZip(tempZip.inputStream(), targetDir, enforceLimit = false)
             tempZip.delete()
 
-            val app = readManifestAsApp(fixedId, targetDir, isSystem = true)
-                ?: return Result.failure(IllegalStateException("Paquete descargado de sistema sin manifest.json válido"))
+            val app = readManifestAsApp(fixedId, targetDir, isSystem = false)
+            if (app == null || app.appTier != AppTier.OFFICIAL_SYSTEM_APP) {
+                targetDir.deleteRecursively()
+                return Result.failure(SecurityException("La app descargada no cuenta con una firma oficial de sistema válida"))
+            }
             saveToRegistry(app)
             Result.success(app)
         } catch (e: Exception) {
@@ -266,6 +270,12 @@ class AppManager(private val context: Context) {
         val targetDir = appDir(fixedId).apply { mkdirs() }
         return try {
             copyAssetDir("system_apps/$assetSubdir", targetDir)
+            val manifestFile = File(targetDir, "manifest.json")
+            if (manifestFile.exists()) {
+                val manifestObj = JSONObject(manifestFile.readText())
+                manifestObj.put("publisher", "MbMdroid Autoridad Oficial")
+                manifestFile.writeText(manifestObj.toString(2))
+            }
             val app = readManifestAsApp(fixedId, targetDir, isSystem = true)
                 ?: return Result.failure(IllegalStateException("system_apps/$assetSubdir sin manifest.json válido"))
             saveToRegistry(app)
@@ -479,15 +489,28 @@ class AppManager(private val context: Context) {
     ): MiniApp? {
         val manifestFile = File(dir, "manifest.json")
         if (!manifestFile.exists()) return null
-        val manifest = JSONObject(manifestFile.readText())
+        val manifestText = manifestFile.readText()
+        val manifest = JSONObject(manifestText)
         val entry = manifest.optString("entry", "index.html")
         if (!File(dir, entry).exists()) return null
 
         val permissionsArr = manifest.optJSONArray("permissions")
         val permissions = permissionsArr?.let { arr -> (0 until arr.length()).map { arr.getString(it) } } ?: emptyList()
 
-        val isOfficial = MiniApp.isOfficialSystemId(id)
-        val computedIsSystem = isSystem && isOfficial
+        val signature = manifest.optString("signature", "")
+        val publicKey = manifest.optString("publicKey", "")
+        val publisher = manifest.optString("publisher", "Desconocido")
+        val cleanPayload = AppSigner.cleanManifestPayload(manifestText)
+
+        val tier = AppSigner.determineTier(
+            id = id,
+            manifestPayload = cleanPayload,
+            signatureBase64 = signature,
+            publicKeyBase64 = publicKey,
+            isAssetBootstrap = isSystem
+        )
+
+        val computedIsSystem = (tier == AppTier.OFFICIAL_SYSTEM_APP)
 
         return MiniApp(
             id = id,
@@ -500,7 +523,11 @@ class AppManager(private val context: Context) {
             permissions = permissions,
             background = manifest.optBoolean("background", false),
             category = if (computedIsSystem) "system" else manifest.optString("category", "other").ifBlank { "other" },
-            isSystem = computedIsSystem
+            isSystem = computedIsSystem,
+            publisher = publisher,
+            signature = signature,
+            publicKey = publicKey,
+            appTier = tier
         )
     }
 

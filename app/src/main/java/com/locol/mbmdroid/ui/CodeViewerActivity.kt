@@ -7,8 +7,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -18,12 +16,7 @@ import androidx.compose.ui.unit.sp
 import com.locol.mbmdroid.data.AppManager
 import java.io.File
 
-/**
- * Muestra el árbol de archivos de cualquier mini-app instalada (sin importar el
- * formato: html, css, js, json, png, mp3...) y el contenido crudo de cada uno.
- * Los binarios se muestran como "archivo binario" con su tamaño, en vez de
- * intentar renderizarlos como texto.
- */
+@OptIn(ExperimentalMaterial3Api::class)
 class CodeViewerActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -42,7 +35,11 @@ class CodeViewerActivity : ComponentActivity() {
                     Box(Modifier.padding(padding)) {
                         val current = selectedFile
                         if (current == null) {
-                            FileTree(root = root, onFileClick = { selectedFile = it })
+                            FileTree(
+                                root = root,
+                                onFileClick = { selectedFile = it },
+                                onFileCreated = { appManager.refreshFromManifest(appId) }
+                            )
                         } else {
                             FileContentView(
                                 file = current,
@@ -64,28 +61,75 @@ class CodeViewerActivity : ComponentActivity() {
 private val textExtensions = setOf("html", "htm", "css", "js", "json", "txt", "svg", "md")
 
 @Composable
-private fun FileTree(root: File, onFileClick: (File) -> Unit) {
-    val files = remember(root) {
+private fun FileTree(root: File, onFileClick: (File) -> Unit, onFileCreated: () -> Unit) {
+    var showNewFileDialog by remember { mutableStateOf(false) }
+    var newFileName by remember { mutableStateOf("") }
+    var refreshKey by remember { mutableIntStateOf(0) }
+
+    val files = remember(root, refreshKey) {
         root.walkTopDown().filter { it.isFile }
             .sortedBy { it.relativeTo(root).path }
             .toList()
     }
-    LazyColumn {
-        items(files) { file ->
-            val relPath = file.relativeTo(root).path
-            ListItem(
-                headlineContent = { Text(relPath) },
-                supportingContent = { Text("${file.length()} bytes") },
-                modifier = Modifier.clickable { onFileClick(file) }
-            )
-            Divider()
+
+    Column(Modifier.fillMaxSize()) {
+        Row(
+            Modifier.fillMaxWidth().padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text("Archivos de la app", style = MaterialTheme.typography.titleMedium)
+            Button(onClick = { showNewFileDialog = true }) {
+                Text("+ Nuevo archivo")
+            }
+        }
+        HorizontalDivider()
+        LazyColumn {
+            items(files) { file ->
+                val relPath = file.relativeTo(root).path
+                ListItem(
+                    headlineContent = { Text(relPath) },
+                    supportingContent = { Text("${file.length()} bytes") },
+                    modifier = Modifier.clickable { onFileClick(file) }
+                )
+                HorizontalDivider()
+            }
         }
     }
-}
 
-@Composable
-private fun Divider() {
-    HorizontalDivider()
+    if (showNewFileDialog) {
+        AlertDialog(
+            onDismissRequest = { showNewFileDialog = false },
+            title = { Text("Nuevo archivo") },
+            text = {
+                OutlinedTextField(
+                    value = newFileName,
+                    onValueChange = { newFileName = it },
+                    label = { Text("Nombre / Ruta (ej. js/script.js)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val name = newFileName.trim()
+                    if (name.isNotEmpty()) {
+                        val newFile = File(root, name)
+                        newFile.parentFile?.mkdirs()
+                        if (!newFile.exists()) {
+                            newFile.createNewFile()
+                        }
+                        newFileName = ""
+                        showNewFileDialog = false
+                        refreshKey++
+                        onFileCreated()
+                    }
+                }) { Text("Crear") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showNewFileDialog = false; newFileName = "" }) { Text("Cancelar") }
+            }
+        )
+    }
 }
 
 @Composable
