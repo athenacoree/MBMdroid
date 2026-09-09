@@ -117,8 +117,8 @@ class SystemBridge(
      * "Descargas" debe consultar [listDownloads] periódicamente para ver su avance.
      */
     @JavascriptInterface
-    fun startDownload(url: String, appName: String, category: String): String =
-        activity.startTrackedDownload(url, appName, category)
+    fun startDownload(url: String, appName: String, category: String, expectedSha256: String = ""): String =
+        activity.startTrackedDownload(url, appName, category, expectedSha256)
 
     /** Lista TODAS las descargas (de cualquier app), más recientes primero, con su progreso actual. */
     @JavascriptInterface

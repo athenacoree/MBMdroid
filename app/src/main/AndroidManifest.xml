@@ -41,7 +41,7 @@
     <application
         android:allowBackup="true"
         android:label="MbMdroid"
-        android:icon="@drawable/ic_launcher_foreground"
+        android:icon="@mipmap/ic_launcher"
         android:theme="@style/Theme.Material3.DayNight.NoActionBar"
         android:supportsRtl="true">
 

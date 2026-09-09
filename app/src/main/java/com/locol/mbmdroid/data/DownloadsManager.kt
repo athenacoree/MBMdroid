@@ -21,7 +21,8 @@ data class DownloadRecord(
     var speedBps: Double = 0.0,
     var errorMessage: String? = null,
     var installedAppId: String? = null,
-    var canceled: Boolean = false
+    var canceled: Boolean = false,
+    val expectedSha256: String = ""
 )
 
 /**
@@ -36,7 +37,7 @@ class DownloadsManager(private val context: Context) {
     private val file: File get() = File(context.filesDir, "downloads.json")
 
     @Synchronized
-    fun create(appName: String, url: String, category: String): DownloadRecord {
+    fun create(appName: String, url: String, category: String, expectedSha256: String = ""): DownloadRecord {
         val now = System.currentTimeMillis()
         val record = DownloadRecord(
             id = UUID.randomUUID().toString(),
@@ -47,7 +48,8 @@ class DownloadsManager(private val context: Context) {
             downloadedBytes = 0L,
             state = DownloadState.DOWNLOADING,
             startedAt = now,
-            updatedAt = now
+            updatedAt = now,
+            expectedSha256 = expectedSha256
         )
         val list = loadAll().toMutableList()
         list.add(0, record)
@@ -118,6 +120,7 @@ class DownloadsManager(private val context: Context) {
             put("etaSeconds", etaSeconds)
             put("errorMessage", r.errorMessage ?: "")
             put("installedAppId", r.installedAppId ?: "")
+            put("expectedSha256", r.expectedSha256)
         }
     }
 
@@ -140,7 +143,8 @@ class DownloadsManager(private val context: Context) {
                     speedBps = o.optDouble("speedBps", 0.0),
                     errorMessage = o.optString("errorMessage", null).takeIf { !it.isNullOrBlank() },
                     installedAppId = o.optString("installedAppId", null).takeIf { !it.isNullOrBlank() },
-                    canceled = o.optBoolean("canceled", false)
+                    canceled = o.optBoolean("canceled", false),
+                    expectedSha256 = o.optString("expectedSha256", "")
                 )
             }
         } catch (e: Exception) {
@@ -165,6 +169,7 @@ class DownloadsManager(private val context: Context) {
                 put("errorMessage", r.errorMessage ?: "")
                 put("installedAppId", r.installedAppId ?: "")
                 put("canceled", r.canceled)
+                put("expectedSha256", r.expectedSha256)
             })
         }
         file.writeText(arr.toString())

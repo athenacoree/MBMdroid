@@ -16,7 +16,8 @@ data class FileDiff(
     val path: String,
     val type: FileChangeType,
     val linesAdded: Int = 0,
-    val linesRemoved: Int = 0
+    val linesRemoved: Int = 0,
+    val unifiedDiffSnippet: String = ""
 )
 
 data class UpdatePlan(
@@ -61,7 +62,7 @@ class AppUpdater(private val context: Context) {
 
             if (isSystemApp || MiniApp.isOfficialSystemId(appId)) {
                 val officialId = manifestJson.optString("officialSystemId", manifestJson.optString("id", ""))
-                if (officialId.isNotBlank() && officialId != appId && !MiniApp.isOfficialSystemId(officialId)) {
+                if (officialId.isNotBlank() && officialId != appId) {
                     stagedDir.deleteRecursively()
                     return Result.failure(IllegalStateException("El paquete de actualización no corresponde al identificador oficial del sistema"))
                 }
@@ -113,8 +114,11 @@ class AppUpdater(private val context: Context) {
                     if (sha256(oldFile) == sha256(newFile)) {
                         FileDiff(path, FileChangeType.UNCHANGED)
                     } else if (path.substringAfterLast('.', "") in textExtensions) {
-                        val (added, removed) = lineDiffCounts(oldFile.readText(), newFile.readText())
-                        FileDiff(path, FileChangeType.MODIFIED, added, removed)
+                        val oldText = oldFile.readText()
+                        val newText = newFile.readText()
+                        val (added, removed) = lineDiffCounts(oldText, newText)
+                        val snippet = computeUnifiedDiff(oldText, newText)
+                        FileDiff(path, FileChangeType.MODIFIED, added, removed, snippet)
                     } else {
                         FileDiff(path, FileChangeType.MODIFIED)
                     }
@@ -131,6 +135,46 @@ class AppUpdater(private val context: Context) {
     private fun sha256(file: File): String {
         val digest = MessageDigest.getInstance("SHA-256").digest(file.readBytes())
         return digest.joinToString("") { "%02x".format(it) }
+    }
+
+    /** Genera la vista de diferencias unificada línea por línea (+ y -). */
+    fun computeUnifiedDiff(oldText: String, newText: String): String {
+        val oldLines = oldText.lines()
+        val newLines = newText.lines()
+        val n = oldLines.size
+        val m = newLines.size
+        val dp = Array(n + 1) { IntArray(m + 1) }
+        for (i in n - 1 downTo 0) {
+            for (j in m - 1 downTo 0) {
+                dp[i][j] = if (oldLines[i] == newLines[j]) dp[i + 1][j + 1] + 1
+                           else maxOf(dp[i + 1][j], dp[i][j + 1])
+            }
+        }
+        var i = 0
+        var j = 0
+        val sb = StringBuilder()
+        while (i < n && j < m) {
+            if (oldLines[i] == newLines[j]) {
+                sb.append("  ").append(oldLines[i]).append("\n")
+                i++
+                j++
+            } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+                sb.append("- ").append(oldLines[i]).append("\n")
+                i++
+            } else {
+                sb.append("+ ").append(newLines[j]).append("\n")
+                j++
+            }
+        }
+        while (i < n) {
+            sb.append("- ").append(oldLines[i]).append("\n")
+            i++
+        }
+        while (j < m) {
+            sb.append("+ ").append(newLines[j]).append("\n")
+            j++
+        }
+        return sb.toString()
     }
 
     /** Diff de líneas por LCS (programación dinámica) — cuenta agregadas/eliminadas. */

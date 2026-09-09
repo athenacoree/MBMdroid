@@ -87,7 +87,7 @@ function onCatalogButtonTap(idx) {
   btn.innerText = 'Iniciando…';
   progressWrap.classList.remove('hidden');
 
-  const downloadId = System.startDownload(item.url, item.name, item.category || 'other');
+  const downloadId = System.startDownload(item.url, item.name, item.category || 'other', item.sha256 || '');
   trackCatalogDownload(idx, downloadId, btn, progressWrap, sizeLabel);
   if (window.bumpDownloadsBadge) window.bumpDownloadsBadge();
 }

@@ -7,6 +7,7 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -119,7 +120,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun onUpdateZipPicked(target: MiniApp, uri: Uri) {
-        androidx.lifecycle.lifecycleScope.launch {
+        lifecycleScope.launch {
             val result = withContext(Dispatchers.IO) {
                 appUpdater.stage(target.id, appManager.appDir(target.id), uri, target.isSystem)
             }
@@ -128,14 +129,14 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun onBackupDestinationPicked(uri: Uri) {
-        androidx.lifecycle.lifecycleScope.launch {
+        lifecycleScope.launch {
             val result = withContext(Dispatchers.IO) { appManager.exportBackup(uri) }
             onBackupResult?.invoke(result)
         }
     }
 
     private fun onBackupSourcePicked(uri: Uri) {
-        androidx.lifecycle.lifecycleScope.launch {
+        lifecycleScope.launch {
             val result = withContext(Dispatchers.IO) { appManager.importBackup(uri) }
             onRestoreResult?.invoke(result)
         }
@@ -146,11 +147,24 @@ class MainActivity : ComponentActivity() {
         appManager = AppManager(this)
         appUpdater = AppUpdater(this)
 
-        // Apps de sistema: Ajustes, Tienda y Almacenamiento. Se instalan una sola vez desde
-        // assets/system_apps/ si aún no existen; el usuario nunca las borra.
-        appManager.installSystemAppFromAssets("settings", SETTINGS_APP_ID)
-        appManager.installSystemAppFromAssets("store", STORE_APP_ID)
-        appManager.installSystemAppFromAssets("storage", STORAGE_APP_ID)
+        // Apps de sistema: Ajustes, Tienda y Almacenamiento. Se descargan desde el repositorio
+        // oficial en primer arranque/actualización con identificador oficial de sistema (system.*).
+        lifecycleScope.launch(Dispatchers.IO) {
+            val systemAppsUrls = mapOf(
+                SETTINGS_APP_ID to "https://raw.githubusercontent.com/mbmdroid/system_apps/main/settings.zip",
+                STORE_APP_ID to "https://raw.githubusercontent.com/mbmdroid/system_apps/main/store.zip",
+                STORAGE_APP_ID to "https://raw.githubusercontent.com/mbmdroid/system_apps/main/storage.zip"
+            )
+            for ((id, url) in systemAppsUrls) {
+                if (appManager.getById(id) == null) {
+                    val remoteResult = appManager.installOrUpdateSystemAppFromUrl(id, url)
+                    if (remoteResult.isFailure) {
+                        val assetSubdir = id.removePrefix("system.")
+                        appManager.installSystemAppFromAssets(assetSubdir, id)
+                    }
+                }
+            }
+        }
         appManager.purgeExpiredTrash()
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
@@ -239,6 +253,8 @@ fun LauncherScreen(
     var duplicatePrompt by remember { mutableStateOf<InstallOutcome.DuplicateName?>(null) }
     var showTrashSheet by remember { mutableStateOf(false) }
     var backupMessage by remember { mutableStateOf<String?>(null) }
+    var showCreateDialog by remember { mutableStateOf(false) }
+    var newAppNameInput by remember { mutableStateOf("") }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -294,6 +310,10 @@ fun LauncherScreen(
                             Icon(Icons.Default.MoreVert, contentDescription = "Más opciones")
                         }
                         DropdownMenu(expanded = overflowOpen, onDismissRequest = { overflowOpen = false }) {
+                            DropdownMenuItem(
+                                text = { Text("Crear nueva app") },
+                                onClick = { overflowOpen = false; showCreateDialog = true }
+                            )
                             DropdownMenuItem(
                                 text = { Text("Papelera (${appManager.listTrash().size})") },
                                 onClick = { overflowOpen = false; showTrashSheet = true }
@@ -519,6 +539,36 @@ fun LauncherScreen(
             title = { Text("Copia de seguridad") },
             text = { Text(message) },
             confirmButton = { TextButton(onClick = { backupMessage = null }) { Text("OK") } }
+        )
+    }
+
+    if (showCreateDialog) {
+        AlertDialog(
+            onDismissRequest = { showCreateDialog = false },
+            title = { Text("Crear nueva Mini-App") },
+            text = {
+                OutlinedTextField(
+                    value = newAppNameInput,
+                    onValueChange = { newAppNameInput = it },
+                    label = { Text("Nombre de la app") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val name = newAppNameInput.trim()
+                    if (name.isNotEmpty()) {
+                        appManager.createNewApp(name)
+                        newAppNameInput = ""
+                        showCreateDialog = false
+                        refresh()
+                    }
+                }) { Text("Crear") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCreateDialog = false; newAppNameInput = "" }) { Text("Cancelar") }
+            }
         )
     }
 

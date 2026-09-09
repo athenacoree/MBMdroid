@@ -119,6 +119,20 @@ class AppRuntimeActivity : AppCompatActivity() {
                     view: WebView,
                     request: WebResourceRequest
                 ): WebResourceResponse? = assetLoader.shouldInterceptRequest(request.url)
+
+                override fun onRenderProcessGone(
+                    view: WebView,
+                    detail: android.webkit.RenderProcessGoneDetail
+                ): Boolean {
+                    RuntimeRegistry.destroy(appId)
+                    AlertDialog.Builder(this@AppRuntimeActivity)
+                        .setTitle("La app se cerró inesperadamente")
+                        .setMessage("El proceso de renderizado de la mini-app fallo. Se ha cerrado de forma segura.")
+                        .setPositiveButton("Volver al launcher") { _, _ -> finish() }
+                        .setOnDismissListener { finish() }
+                        .show()
+                    return true
+                }
             }
             webView.loadUrl("https://appassets.androidplatform.net/${app.entryPoint}")
         } else {
@@ -241,8 +255,8 @@ class AppRuntimeActivity : AppCompatActivity() {
      * paquete automáticamente. Devuelve de inmediato el id de la descarga para que el HTML
      * pueda mostrarla en "Descargas" mientras corre en segundo plano.
      */
-    fun startTrackedDownload(url: String, appName: String, category: String): String {
-        val record = downloadsManager.create(appName, url, category)
+    fun startTrackedDownload(url: String, appName: String, category: String, expectedSha256: String = ""): String {
+        val record = downloadsManager.create(appName, url, category, expectedSha256)
         ensureDownloadChannel()
 
         fun pushUpdate(rec: DownloadRecord) {
@@ -253,6 +267,10 @@ class AppRuntimeActivity : AppCompatActivity() {
         val job = CoroutineScope(Dispatchers.IO).launch {
             val tempFile = File(cacheDir, "download_${record.id}.zip")
             try {
+                if (!url.startsWith("https://", ignoreCase = true) && !url.startsWith("http://localhost", ignoreCase = true)) {
+                    throw SecurityException("Por seguridad, solo se permiten descargas HTTPS")
+                }
+
                 val connection = (URL(url).openConnection() as HttpURLConnection).apply {
                     connectTimeout = 10000
                     readTimeout = 15000
@@ -290,16 +308,24 @@ class AppRuntimeActivity : AppCompatActivity() {
                                 lastDownloaded = downloaded
                             }
                         }
-                        pushUpdate(
-                            (downloadsManager.get(record.id) ?: record).copy(
-                                downloadedBytes = downloaded,
-                                totalBytes = total,
-                                state = DownloadState.INSTALLING
-                            )
-                        )
                     }
                 }
                 connection.disconnect()
+
+                if (expectedSha256.isNotBlank()) {
+                    val actualSha = computeSha256(tempFile)
+                    if (!actualSha.equals(expectedSha256.trim(), ignoreCase = true)) {
+                        throw SecurityException("Verificación de integridad fallida: el hash SHA-256 no coincide")
+                    }
+                }
+
+                pushUpdate(
+                    (downloadsManager.get(record.id) ?: record).copy(
+                        downloadedBytes = downloaded,
+                        totalBytes = total,
+                        state = DownloadState.INSTALLING
+                    )
+                )
 
                 val result = appManager.installAutoResolving(Uri.fromFile(tempFile))
                 tempFile.delete()
@@ -325,6 +351,18 @@ class AppRuntimeActivity : AppCompatActivity() {
         }
         activeDownloadJobs[record.id] = job
         return record.id
+    }
+
+    private fun computeSha256(file: File): String {
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        file.inputStream().use { input ->
+            val buffer = ByteArray(8192)
+            var read: Int
+            while (input.read(buffer).also { read = it } != -1) {
+                digest.update(buffer, 0, read)
+            }
+        }
+        return digest.digest().joinToString("") { "%02x".format(it) }
     }
 
     private fun ensureDownloadChannel() {

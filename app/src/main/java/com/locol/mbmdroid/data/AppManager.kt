@@ -8,6 +8,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.io.InputStream
+import java.net.HttpURLConnection
+import java.net.URL
+import java.security.MessageDigest
 import java.util.UUID
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
@@ -151,6 +154,94 @@ class AppManager(private val context: Context) {
         } catch (e: Exception) {
             targetDir.deleteRecursively()
             return InstallOutcome.Failure(e.message ?: "Error desconocido al instalar")
+        }
+    }
+
+    /** Crea una nueva mini-app editable por el usuario desde cero con plantilla básica HTML/CSS/JS. */
+    fun createNewApp(name: String, category: String = "other"): Result<MiniApp> {
+        val id = UUID.randomUUID().toString()
+        val dir = appDir(id).apply { mkdirs() }
+        return try {
+            val manifestFile = File(dir, "manifest.json")
+            val manifestObj = JSONObject().apply {
+                put("name", name)
+                put("entry", "index.html")
+                put("version", "1.0")
+                put("category", category)
+                put("permissions", JSONArray())
+                put("background", false)
+            }
+            manifestFile.writeText(manifestObj.toString(2))
+
+            val indexFile = File(dir, "index.html")
+            indexFile.writeText("""
+                <!DOCTYPE html>
+                <html>
+                <head>
+                  <meta charset="utf-8">
+                  <meta name="viewport" content="width=device-width, initial-scale=1">
+                  <title>${name}</title>
+                  <style>
+                    body { font-family: system-ui, sans-serif; padding: 20px; background: #121212; color: #fff; }
+                    h1 { color: #7c8bff; }
+                  </style>
+                </head>
+                <body>
+                  <h1>${name}</h1>
+                  <p>¡Creada en MbMdroid! Puedes editar su código desde el visor/editor de código.</p>
+                </body>
+                </html>
+            """.trimIndent())
+
+            val app = readManifestAsApp(id, dir, isSystem = false)
+                ?: return Result.failure(IllegalStateException("No se pudo crear la mini-app"))
+            saveToRegistry(app)
+            Result.success(app)
+        } catch (e: Exception) {
+            dir.deleteRecursively()
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Descarga e instala/actualiza una app de sistema directamente desde el repositorio remoto oficial.
+     */
+    fun installOrUpdateSystemAppFromUrl(fixedId: String, zipUrl: String, expectedSha256: String = ""): Result<MiniApp> {
+        if (!MiniApp.isOfficialSystemId(fixedId)) {
+            return Result.failure(IllegalArgumentException("El ID $fixedId no es un identificador oficial de app del sistema"))
+        }
+        val targetDir = appDir(fixedId).apply { mkdirs() }
+        val tempZip = File(context.cacheDir, "sys_update_${fixedId}.zip")
+        return try {
+            val connection = (URL(zipUrl).openConnection() as HttpURLConnection).apply {
+                connectTimeout = 10000
+                readTimeout = 15000
+            }
+            connection.connect()
+            connection.inputStream.use { input ->
+                tempZip.outputStream().use { output -> input.copyTo(output) }
+            }
+            connection.disconnect()
+
+            if (expectedSha256.isNotBlank()) {
+                val digest = MessageDigest.getInstance("SHA-256")
+                val actualSha = digest.digest(tempZip.readBytes()).joinToString("") { "%02x".format(it) }
+                if (!actualSha.equals(expectedSha256.trim(), ignoreCase = true)) {
+                    tempZip.delete()
+                    return Result.failure(SecurityException("Verificación SHA-256 fallida para la app de sistema"))
+                }
+            }
+
+            extractZip(tempZip.inputStream(), targetDir, enforceLimit = false)
+            tempZip.delete()
+
+            val app = readManifestAsApp(fixedId, targetDir, isSystem = true)
+                ?: return Result.failure(IllegalStateException("Paquete descargado de sistema sin manifest.json válido"))
+            saveToRegistry(app)
+            Result.success(app)
+        } catch (e: Exception) {
+            tempZip.delete()
+            Result.failure(e)
         }
     }
 

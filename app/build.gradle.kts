@@ -1,3 +1,5 @@
+import java.util.Base64
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -28,6 +30,32 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+
+    signingConfigs {
+        create("release") {
+            val keystoreBase64 = System.getenv("KEYSTORE_BASE64") ?: System.getenv("KEYSTOREBASE64")
+            if (!keystoreBase64.isNullOrBlank()) {
+                val keystoreFile = file("${layout.buildDirectory.get()}/release.keystore")
+                keystoreFile.parentFile?.mkdirs()
+                keystoreFile.writeBytes(Base64.getDecoder().decode(keystoreBase64.trim()))
+                storeFile = keystoreFile
+                storePassword = System.getenv("KEYSTORE_PASSWORD") ?: System.getenv("KEYSTORE_PASS") ?: ""
+                keyAlias = System.getenv("KEY_ALIAS") ?: System.getenv("KEYALIAS") ?: ""
+                keyPassword = System.getenv("KEY_PASSWORD") ?: System.getenv("KEYPASS") ?: storePassword
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            val releaseSigning = signingConfigs.findByName("release")
+            if (releaseSigning?.storeFile != null && releaseSigning.storeFile!!.exists()) {
+                signingConfig = releaseSigning
+            }
+        }
+    }
 }
 
 dependencies {
@@ -44,4 +72,6 @@ dependencies {
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+
+    testImplementation("junit:junit:4.13.2")
 }

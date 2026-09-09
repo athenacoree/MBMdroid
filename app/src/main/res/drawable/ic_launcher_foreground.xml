@@ -1,27 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-
-    <!-- Fondo -->
     <path
-        android:pathData="M0,0h108v108h-108z"
-        android:fillColor="#3D5AFE" />
-
-    <!-- Grid de 4 cuadrados redondeados, estilo ícono de "apps dentro de una app" -->
-    <path
-        android:pathData="M30,28 h16 a6,6 0 0 1 6,6 v16 a6,6 0 0 1 -6,6 h-16 a6,6 0 0 1 -6,-6 v-16 a6,6 0 0 1 6,-6 z"
-        android:fillColor="#FFFFFF" />
-    <path
-        android:pathData="M62,28 h16 a6,6 0 0 1 6,6 v16 a6,6 0 0 1 -6,6 h-16 a6,6 0 0 1 -6,-6 v-16 a6,6 0 0 1 6,-6 z"
         android:fillColor="#FFFFFF"
-        android:fillAlpha="0.85" />
+        android:pathData="M30,30h48v48h-48z"
+        android:strokeWidth="4"
+        android:strokeColor="#FFFFFF"/>
     <path
-        android:pathData="M30,60 h16 a6,6 0 0 1 6,6 v16 a6,6 0 0 1 -6,6 h-16 a6,6 0 0 1 -6,-6 v-16 a6,6 0 0 1 6,-6 z"
-        android:fillColor="#FFFFFF"
-        android:fillAlpha="0.85" />
-    <path
-        android:pathData="M62,60 h16 a6,6 0 0 1 6,6 v16 a6,6 0 0 1 -6,6 h-16 a6,6 0 0 1 -6,-6 v-16 a6,6 0 0 1 6,-6 z"
-        android:fillColor="#FF4081" />
+        android:fillColor="#FF4081"
+        android:pathData="M38,38h32v32h-32z"/>
 </vector>

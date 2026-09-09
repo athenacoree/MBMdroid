@@ -37,14 +37,18 @@ class CodeViewerActivity : ComponentActivity() {
             MaterialTheme {
                 var selectedFile by remember { mutableStateOf<File?>(null) }
                 Scaffold(topBar = {
-                    TopAppBar(title = { Text("Código de ${app.name}") })
+                    TopAppBar(title = { Text("Código / Editor - ${app.name}") })
                 }) { padding ->
                     Box(Modifier.padding(padding)) {
                         val current = selectedFile
                         if (current == null) {
                             FileTree(root = root, onFileClick = { selectedFile = it })
                         } else {
-                            FileContentView(file = current, onBack = { selectedFile = null })
+                            FileContentView(
+                                file = current,
+                                onBack = { selectedFile = null },
+                                onSaved = { appManager.refreshFromManifest(appId) }
+                            )
                         }
                     }
                 }
@@ -85,22 +89,42 @@ private fun Divider() {
 }
 
 @Composable
-private fun FileContentView(file: File, onBack: () -> Unit) {
+private fun FileContentView(file: File, onBack: () -> Unit, onSaved: () -> Unit) {
+    val ext = file.extension.lowercase()
+    val isText = ext in textExtensions
+    var contentText by remember(file) {
+        mutableStateOf(if (isText) runCatching { file.readText() }.getOrElse { "" } else "")
+    }
+    var saveMessage by remember { mutableStateOf<String?>(null) }
+
     Column(Modifier.fillMaxSize().padding(12.dp)) {
-        TextButton(onClick = onBack) { Text("← Volver") }
-        val ext = file.extension.lowercase()
-        if (ext in textExtensions) {
-            val content = remember(file) { runCatching { file.readText() }.getOrElse { "(no se pudo leer como texto)" } }
-            Text(
-                text = content,
-                fontFamily = FontFamily.Monospace,
-                fontSize = 12.sp,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            TextButton(onClick = onBack) { Text("← Volver") }
+            if (isText) {
+                Button(onClick = {
+                    runCatching {
+                        file.writeText(contentText)
+                        saveMessage = "Guardado correctamente"
+                        onSaved()
+                    }.onFailure { saveMessage = "Error al guardar: ${it.message}" }
+                }) {
+                    Text("Guardar")
+                }
+            }
+        }
+        saveMessage?.let { msg ->
+            Text(msg, color = MaterialTheme.colorScheme.primary, fontSize = 12.sp, modifier = Modifier.padding(vertical = 4.dp))
+        }
+        Spacer(Modifier.height(8.dp))
+        if (isText) {
+            OutlinedTextField(
+                value = contentText,
+                onValueChange = { contentText = it },
+                modifier = Modifier.fillMaxSize(),
+                textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, fontSize = 12.sp)
             )
         } else {
-            Text("Archivo binario · ${file.length()} bytes · no se puede mostrar como texto")
+            Text("Archivo binario · ${file.length()} bytes · no editable como texto")
         }
     }
 }
