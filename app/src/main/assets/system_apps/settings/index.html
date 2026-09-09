@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ajustes — MbMdroid</title>
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+  <header class="topbar"><h1>Ajustes</h1></header>
+
+  <main>
+    <section>
+      <h2>Apps predeterminadas</h2>
+      <p class="hint">Elige qué app se abre automáticamente para cada tipo de archivo.</p>
+      <div id="defaults-list" class="card-list"></div>
+    </section>
+
+    <section>
+      <h2>Todas las apps instaladas</h2>
+      <div id="apps-list" class="card-list"></div>
+    </section>
+  </main>
+
+  <div id="picker-overlay" class="overlay hidden">
+    <div class="sheet">
+      <h3 id="picker-title">Elegir app</h3>
+      <div id="picker-options"></div>
+      <button class="btn ghost" onclick="closePicker()">Cancelar</button>
+    </div>
+  </div>
+
+  <script src="js/ajustes.js"></script>
+</body>
+</html>

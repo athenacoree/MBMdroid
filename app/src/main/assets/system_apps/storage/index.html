@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Almacenamiento — MbMdroid</title>
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+  <header class="topbar"><h1>Almacenamiento</h1></header>
+
+  <main>
+    <section id="summary-section">
+      <div class="storage-card">
+        <div class="storage-bar-track">
+          <div id="bar-miniapps" class="storage-bar-fill fill-pink" style="width:0%"></div>
+        </div>
+        <div class="storage-legend">
+          <div class="legend-item"><span class="dot dot-pink"></span>Mini-apps <b id="legend-miniapps">…</b></div>
+          <div class="legend-item"><span class="dot dot-gray"></span>Libre <b id="legend-free">…</b></div>
+        </div>
+        <div class="storage-total" id="storage-total">Calculando espacio real del teléfono…</div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <h2>Mis mini-apps</h2>
+        <span class="hint-right" id="miniapps-count"></span>
+      </div>
+      <div id="miniapps-list" class="card-list"></div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <h2>Apps del teléfono</h2>
+        <span class="hint-right" id="phoneapps-count"></span>
+      </div>
+      <p class="hint">Toca una app para abrirla directamente desde aquí.</p>
+      <input id="phoneapps-search" class="search-input" placeholder="Buscar app…" oninput="filterPhoneApps(this.value)">
+      <div id="phoneapps-list" class="card-list"></div>
+    </section>
+  </main>
+
+  <div id="detail-sheet" class="sheet hidden" onclick="closeSheetOnBackdrop(event)">
+    <div class="sheet-content">
+      <div id="detail-sheet-body"></div>
+      <button class="btn secondary full" onclick="closeSheet()">Cerrar</button>
+    </div>
+  </div>
+
+  <script src="js/almacenamiento.js"></script>
+</body>
+</html>

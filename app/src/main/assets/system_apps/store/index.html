@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Tienda — MbMdroid</title>
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1 id="topbar-title">Tienda</h1>
+  </header>
+
+  <main id="view-tienda" class="view">
+    <section>
+      <h2>Instalar desde un archivo</h2>
+      <p class="hint">Funciona sin conexión: elige un .zip guardado en el teléfono.</p>
+      <button class="btn" onclick="installFromFile()">Elegir paquete .zip</button>
+      <p id="file-status" class="status"></p>
+    </section>
+
+    <section>
+      <h2>Catálogo</h2>
+      <p class="hint">Requiere conexión a internet al instalar. Antes de descargar verás el peso real del paquete y el tiempo estimado.</p>
+      <div id="catalog-list" class="card-list"></div>
+    </section>
+  </main>
+
+  <main id="view-descargas" class="view hidden">
+    <div id="descargas-root"></div>
+  </main>
+
+  <nav class="tabbar">
+    <button class="tab-btn active" data-view="tienda" onclick="switchView('tienda')">
+      <span class="tab-icon">🛍️</span><span class="tab-label">Tienda</span>
+    </button>
+    <button class="tab-btn" data-view="descargas" onclick="switchView('descargas')">
+      <span class="tab-icon">⬇️</span><span class="tab-label">Descargas</span>
+      <span id="tab-badge" class="tab-badge hidden">0</span>
+    </button>
+  </nav>
+
+  <script src="js/tienda.js"></script>
+  <script src="js/descargas.js"></script>
+  <script>
+    function switchView(name) {
+      document.getElementById('view-tienda').classList.toggle('hidden', name !== 'tienda');
+      document.getElementById('view-descargas').classList.toggle('hidden', name !== 'descargas');
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.view === name));
+      document.getElementById('topbar-title').innerText = name === 'tienda' ? 'Tienda' : 'Descargas';
+      if (name === 'descargas' && window.renderDescargas) window.renderDescargas();
+    }
+  </script>
+</body>
+</html>

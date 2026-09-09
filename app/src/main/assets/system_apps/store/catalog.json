@@ -1,0 +1,14 @@
+[
+  {
+    "name": "Ejemplo — Reproductor de video",
+    "description": "Plantilla de ejemplo. Reemplaza este catálogo por uno real apuntando a tus propios .zip.",
+    "url": "https://tu-servidor.example.com/apps/reproductor-video.zip",
+    "category": "video_player"
+  },
+  {
+    "name": "Ejemplo — Notas rápidas",
+    "description": "Plantilla de ejemplo.",
+    "url": "https://tu-servidor.example.com/apps/notas.zip",
+    "category": "utility"
+  }
+]

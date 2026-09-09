@@ -1,0 +1,11 @@
+{
+  "id": "system.settings",
+  "name": "Ajustes",
+  "entry": "index.html",
+  "version": "1.0",
+  "category": "system",
+  "permissions": [],
+  "background": false,
+  "isSystem": true,
+  "officialSystemId": "system.settings"
+}
